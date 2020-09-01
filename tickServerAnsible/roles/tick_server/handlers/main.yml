@@ -1,0 +1,9 @@
+---
+- name: reload containers
+  become: true
+  command: "{{ item }} chdir=/opt/tickstack" 
+  with_items:
+  - docker-compose down
+  - docker-compose up -d --force-recreate
+
+

@@ -1,0 +1,36 @@
+version: '3'
+services:
+
+  kapacitor:
+    # Full tag list: https://hub.docker.com/r/library/kapacitor/tags/
+    image: kapacitor:1.5.1
+    volumes:
+      # Mount for kapacitor data directory
+      - /var/data/kapacitor/data/:/var/lib/kapacitor
+      # Mount for kapacitor configuration
+      - /opt/tickstack/etc/kapacitor/:/etc/kapacitor/
+    # Kapacitor requires network access to Influxdb
+#    links:
+#      - influxdb
+    ports:
+      # The API for Kapacitor is served on port 9092
+      - "9092:9092"
+    environment:
+      KAPACITOR_HOSTNAME: {{ kapacitor_endpoint }}
+
+  chronograf:
+    # Full tag list: https://hub.docker.com/r/library/chronograf/tags/
+    #image: chronograf:1.3.8
+    image: chronograf:1.6.1
+    environment:
+      INFLUXDB_URL: http://{{ telegraf_endpoint }}:8086
+      KAPACITOR_URL: http://{{ kapacitor_endpoint }}:9092
+    volumes:
+      # Mount for chronograf database
+      - /var/data/chronograf/data/:/var/lib/chronograf/
+    ports:
+      # The WebUI for Chronograf is served on port 8888
+      - "8888:8888"
+    depends_on:
+      - kapacitor
+

@@ -1,0 +1,20 @@
+#!/bin/bash 
+count=`docker ps | wc -l`
+inAlert=/tmp/sentMail
+
+if [[ $count -lt 4 ]]; then
+
+  if [ ! -f "$inAlert" ]; then
+     echo "Check container count on tick" | mail -s "{{ environ }}-tickstack" {{ primary_alert_email }} -aFrom:{{ environ }}-tick@teamworksapp.com
+    touch /tmp/sentMail
+#    echo "First time alert" >> /tmp/bk.tst
+  fi
+
+else
+
+  if [ -f "$inAlert" ]; then
+    rm /tmp/sentMail
+ #   echo "Making sure sentMail is cleaned up" >> /tmp/bk.tst
+  fi
+
+fi

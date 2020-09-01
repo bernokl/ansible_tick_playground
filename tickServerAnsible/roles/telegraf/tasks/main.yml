@@ -1,0 +1,83 @@
+---
+- name: Download telegraf
+  become: true
+  get_url:
+    url: http://dl.influxdata.com/telegraf/releases/telegraf_1.6.1-1_amd64.deb
+    dest: /tmp/telegraf_1.6.1-1_amd64.deb
+    mode: 0644
+  tags:
+    - telegraf_install
+    - telegraf_download
+
+- name: Install Telegraf
+  apt: deb="/tmp/telegraf_1.6.1-1_amd64.deb"
+  become: true
+  tags: telegraf_install
+
+- name: Stop Telegraf if running and disable in upstart
+  become: true
+  service: name=telegraf state=stopped enabled=no
+  tags:
+    - telegraf_install
+    - telegraf_stop
+
+- name: Ensure group docker exists
+  become: true
+  group:
+    name: docker
+    state: present
+  when: "'api' in group_names or 'px-qa' in group_names or 'global-admin' in group_names"
+
+- name: Add Telegraf user to docker group
+  become: true
+  action: user name=telegraf groups="docker,telegraf" append=yes
+  when: "'api' in group_names or 'px-qa' in group_names or 'global-admin' in group_names"
+  tags:
+    - telegraf_install
+    - telegraf_conf
+
+- name: copy config file in
+  become: true
+  template:
+    src: telegraf.conf.j2
+    dest: /etc/telegraf/telegraf.conf
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart telegraf
+  tags:
+    - telegraf_install
+    - telegraf_conf
+
+#- name: Ensure service is running
+#  become: true
+#  service:
+#    name: telegraf
+#    enabled: yes
+#    state: restarted
+#  tags:
+#    - telegraf_install
+#    - telegraf_restart
+
+- name: Configure supervisord for telegraf
+  become: true
+  template:
+    src: telegraf_supervisor.conf
+    dest: "{{supervisord_additional_conf_dir}}"
+  notify: reread supervisord
+  tags:
+    - telegraf_install
+    - telegraf_restart
+    - config_supervisor_telegraf
+
+- name: Reload supervisor
+  become: true
+  command: supervisorctl reload
+  tags: telegraf_reload_supervisor
+
+#- name: telegraf startup
+#  become: true
+#  command: supervisorctl start telegraf
+#  tags:
+#    - telegraf_install
+#    - telegraf_start

@@ -1,0 +1,13 @@
+---
+- hosts: all
+  gather_facts: false
+  any_errors_fatal: true
+  pre_tasks:
+    - name: PREFLIGHT | Install python2
+      raw: sudo apt-get update && sudo apt-get -y install python-simplejson
+      args:
+        warn: False
+  roles:
+    - common_packages
+    - telegraf
+    - docker-engine

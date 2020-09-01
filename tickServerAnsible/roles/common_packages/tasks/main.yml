@@ -1,0 +1,42 @@
+---
+- name: Install htop
+  become: true
+  apt:
+    name: htop
+    state: present
+    update_cache: yes
+
+- name: Fix ec2 internal resolution
+  become: true
+  lineinfile:
+    dest: /etc/resolv.conf
+    line: 'search ec2.internal'
+
+- name: Install SAR
+  become: true
+  apt:
+    name: sysstat
+    state: present
+    update_cache: yes
+  tags: install_sar
+
+- name: enable SAR
+  become: true
+  template:
+    src:  sysstat.j2
+    dest: /etc/default/sysstat
+    owner: root
+    group: root
+    mode: 0644
+  tags: install_sar
+
+- name: update SAR collect interval
+  become: true
+  template:
+    src:  sysstat_cron.j2
+    dest: /etc/cron.d/sysstat
+    owner: root
+    group: root
+    mode: 0644
+  tags: install_sar
+

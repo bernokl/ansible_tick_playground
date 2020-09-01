@@ -1,0 +1,22 @@
+---
+- name: Install supervisord
+  become: true
+  apt: name=supervisor state=present
+  notify: start supervisord
+
+- name: Create confdir and logdir
+  become: true
+  file:
+    dest: "{{item}}"
+    state: directory
+  with_items:
+    - "{{supervisord_conf_dir}}"
+    - "{{supervisord_additional_conf_dir}}"
+    - "{{supervisord_logs_dir}}"
+
+- name: Configure supervisord
+  become: true
+  template:
+    src: supervisord.conf
+    dest: "{{supervisord_conf_file}}"
+  notify: reread supervisord

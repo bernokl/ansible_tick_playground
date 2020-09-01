@@ -1,0 +1,77 @@
+dbrp "telegraf"."autogen"
+
+var critLevel = 95
+var warnLevel = 90
+var critTime = 1
+var warnTime = 1
+var critResetTime = 1
+var warnResetTime = 1
+
+var warn_stream = stream
+    |from()
+        .measurement('disk')
+    |where(lambda: ("path" == '/'))
+    |groupBy('host')
+    |eval(lambda: "used_percent")
+        .as('disk_used')
+    |stateDuration(lambda: "disk_used" >= warnLevel)
+        .unit(1m)
+        .as('warn_duration')
+    |stateDuration(lambda: "disk_used" < warnLevel)
+        .unit(1m)
+        .as('warn_reset_duration')
+    |alert()
+       {% raw -%}
+        .id('Disk - {{ index .Tags "host" }}')
+        .message('{{ .Level }} DiskUsage on {{ index .Tags "host" }} is {{ index .Fields "disk_used" | printf "%0.2f" }}%')
+        .details('''
+        {{ .ID }}
+        {{ .Message }}
+        ''')
+        {%- endraw %}
+        .warn(lambda: "warn_duration" >= warnTime)
+        .warnReset(lambda: "warn_reset_duration" >= warnResetTime)
+        .crit(lambda: "warn_duration" >= warnTime)
+        .critReset(lambda: "warn_reset_duration" >= warnResetTime)
+        .stateChangesOnly()
+        .log('/var/log/kapacitor/kapacitor_alerts.log')
+        .email()
+        .to('{{ primary_alert_email }}')
+    |influxDBOut()
+        .measurement('kapacitor_alerts')
+        .tag('kapacitor_alert_level', 'warning')
+        .tag('metric', 'disk')
+        
+
+var crit_stream = stream
+    |from()
+        .measurement('disk')
+    |where(lambda: ("path" == '/'))
+    |groupBy('host')
+    |eval(lambda: "used_percent")
+        .as('disk_used')
+    |stateDuration(lambda: "disk_used" >= critLevel)
+        .unit(1m)
+        .as('crit_duration')
+    |stateDuration(lambda: "disk_used" < critLevel)
+        .unit(1m)
+        .as('crit_reset_duration')
+    |alert()
+        {% raw -%}
+        .id('Disk - {{ index .Tags "host" }}')
+        .message('{{ .Level }} DiskUsage on {{ index .Tags "host" }} is {{ index .Fields "disk_used" | printf "%0.2f" }}%')
+        .details('''
+        {{ .ID }}
+        {{ .Message }}
+        ''')
+        {%- endraw %}
+        .crit(lambda: "crit_duration" >= critTime)
+        .critReset(lambda: "crit_reset_duration" >= critResetTime)
+        .stateChangesOnly()
+        .log('/var/log/kapacitor/kapacitor_alerts.log')
+        .email()
+        .to('{{ primary_alert_email }}', '{{ ops1_crit_alert_email }}', '{{ ops2_crit_alert_email  }}' )
+    |influxDBOut()
+        .measurement('kapacitor_alerts')
+        .tag('kapacitor_alert_level', 'critical')
+        .tag('metric', 'disk')

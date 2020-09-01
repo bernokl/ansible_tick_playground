@@ -1,0 +1,108 @@
+---
+- name: create tickstack directories
+  become: true
+  file:
+    path: "/opt/{{item}}"
+    owner: root
+    group: root
+    mode: 0744
+    recurse: yes
+    state: directory
+  with_items: ["tickstack/etc/influxdb", "tickstack/etc/telegraf", "tickstack/etc/kapacitor", "tickstack/custom/scripts"]
+  tags: count_containers
+
+- name: create data directories
+  become: true
+  file:
+    path: "/var/{{item}}"
+    owner: root
+    group: root
+    mode: 0644
+    recurse: yes
+    state: directory
+  with_items: ["data/influxdb/data", "data/kapacitor/data/load/tasks"]
+  tags: create_data_directories
+
+- name: update docker-compose bin to 1.21
+  become: true
+  get_url:
+    url: https://github.com/docker/compose/releases/download/1.21.0/docker-compose-Linux-x86_64
+    dest: /usr/bin/docker-compose
+    mode: 0744
+  tags: download_docker_compose_21
+
+- name: place down influxdb conf
+  become: true
+  template:
+    src: influxdb.conf.j2
+    dest: /opt/tickstack/etc/influxdb/influxdb.conf
+    owner: root
+    group: root
+    mode: 0644
+
+- name: place down kapacitor conf
+  become: true
+  template:
+    src:  kapacitor.conf.j2
+    dest: /opt/tickstack/etc/kapacitor/kapacitor.conf
+    owner: root
+    group: root
+    mode: 0644
+  tags: replace_kapacitor_conf
+
+- name: add tick scripts
+  become: true
+  template:
+    src:  '{{ item }}'
+    dest: /var/data/kapacitor/data/load/tasks/
+    owner: root
+    group: root
+    mode: 664
+  with_items:
+     - cpu_check.tick
+     - disk_check_escalation.tick
+     - mem_check.tick
+  notify: reload containers
+  tags: replace_kapacitor_conf
+  tags: update_tick_scripts
+
+- name: add docker compose
+  become: true
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/tickstack/docker-compose.yml
+    owner: root
+    group: root
+    mode: 0644
+  notify: reload containers
+  when: "'chronograf' in {{apps}}"
+  tags: replace_compose
+
+- name: start tick stack
+  become: true
+  command: docker-compose up -d
+  args:
+    chdir: /opt/tickstack
+  tags: start_tick
+
+- name: Add container count script
+  become: true
+  template:
+    src: container_count.sh.j2
+    dest: /opt/tickstack/custom/scripts/container_count.sh
+    owner: root
+    group: root
+    mode: 0700
+  when: "'chronograf' in {{apps}}"
+  tags: count_containers
+
+
+- name: Count containers cron
+  become: true
+  cron:
+    name: "Count containers"
+    user: root
+    job: "/opt/tickstack/custom/scripts/container_count.sh"
+  when: "'chronograf' in {{apps}}"
+  tags: count_containers
+

@@ -1,0 +1,31 @@
+version: '3'
+services:
+  influxdb:
+    # Full tag list: https://hub.docker.com/r/library/influxdb/tags/
+    image: influxdb:1.3.5
+    volumes:
+      # Mount for influxdb data directory
+      - /var/data/influxdb/data:/var/lib/influxdb
+      # Mount for influxdb configuration
+      - /opt/tickstack/etc/influxdb/:/etc/influxdb/
+    ports:
+      # UDP Port
+      - "8089:8089/udp"
+      # The API for InfluxDB is served on port 8086
+      - "8086:8086"
+      - "8082:8082"
+
+
+  # Define a service for using the influx CLI tool.
+  # docker-compose run influxdb-cli
+  influxdb-cli:
+    image: influxdb:1.3.5
+    entrypoint:
+      - influx
+      - -host
+      - influxdb
+    links:
+      - influxdb
+
+    depends_on:
+      - influxdb

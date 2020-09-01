@@ -1,0 +1,5 @@
+---
+
+- name: restart telegraf
+  become: true
+  shell: supervisorctl restart telegraf

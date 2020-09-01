@@ -1,0 +1,5 @@
+---
+- hosts: tickstack
+  roles:
+    - docker-engine
+    - tick_server

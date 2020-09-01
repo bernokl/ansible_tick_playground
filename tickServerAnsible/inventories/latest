@@ -1,0 +1,6 @@
+[latest:children]
+tickstack
+
+[tickstack]
+34.239.136.196 shortname=latest-tickstack apps='["chronograf"]'
+

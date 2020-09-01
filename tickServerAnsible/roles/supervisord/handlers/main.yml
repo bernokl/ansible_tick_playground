@@ -1,0 +1,17 @@
+---
+- name: start supervisord
+  become: true
+  service: name=supervisor state=started
+  register: supervisor_started
+
+- name: reread supervisord
+  become: true
+  command: supervisorctl reread
+  register: supervisor_conf_read
+  notify: update supervisord
+
+- name: update supervisord
+  become: true
+  command: supervisorctl update
+  when: supervisor_conf_read|success
+

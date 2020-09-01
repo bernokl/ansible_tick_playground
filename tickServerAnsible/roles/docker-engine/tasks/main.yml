@@ -1,0 +1,58 @@
+---
+
+#- name: Check OS support
+#  fail:
+#    msg: Your OS is not Ubuntu, and therefore not supported by this role
+#  when: ansible_distribution != "Ubuntu"
+#  tags:
+#    - docker-engine
+
+- name: Get GPG key
+  become: true
+  shell: curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+  tags:
+    - docker-engine
+
+- name: Add Docker repo
+  become: true
+  shell: add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+  tags:
+    - docker-engine
+
+- name: Install docker-ce
+  become: true
+  apt:
+    update_cache: yes
+    name: docker-ce={{ docker_engine_version }}
+    state: present
+    force: yes
+  tags:
+    - docker-engine
+    - upgrade-engine
+
+- name: Install pip
+  become: true
+  apt:
+    name: python-pip
+    state: present
+  tags:
+    - docker-engine
+
+- name: Install docker-py
+  become: true
+  shell: pip install docker-py==1.9.0 --force-reinstall
+  tags:
+    - docker-engine
+
+- name: Add log rotation
+  become: true
+  template:
+    src: docker-container-rotate.j2
+    dest: /etc/logrotate.d/docker-container 
+    owner: root
+    group: root
+    mode: 0644
+  tags:
+    - docker-engine
+    - docker-engine-rotate
+

@@ -1,0 +1,36 @@
+dbrp "telegraf"."autogen"
+
+var critLevel = 90
+var critTime = 3
+var critResetTime = 3
+
+stream
+    |from()
+        .measurement('mem')
+    |groupBy('host')
+    |eval(lambda: "used_percent")
+      .as('mem_used')
+    |stateDuration(lambda: "mem_used" >= critLevel)
+        .unit(1m)
+        .as('crit_duration')
+    |stateDuration(lambda: "mem_used" < critLevel)
+        .unit(1m) .as('crit_reset_duration')
+    |alert()
+        {% raw -%}
+        .id('Memory - {{ index .Tags "host" }}')
+        .message('{{ .Level }} MemUsage on {{ index .Tags "host" }} is {{ index .Fields "mem_used" | printf "%0.2f" }}% ')
+        .details('''
+        {{ .ID }}
+        {{ .Message }}
+        ''')
+        {%- endraw %}
+        .crit(lambda: "crit_duration" >= critTime)
+        .critReset(lambda: "crit_reset_duration" >= critResetTime)
+        .stateChangesOnly()
+        .log('/var/log/kapacitor/kapacitor_alerts.log')
+        .email()
+        .to('{{ primary_alert_email }}')
+        |influxDBOut()
+             .measurement('kapacitor_alerts')
+             .tag('kapacitor_alert_level', 'critical')
+             .tag('metric', 'mem')
